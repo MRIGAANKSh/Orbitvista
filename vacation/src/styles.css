@@ -2,146 +2,166 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-:root{
-  --bg:#e9e7e7;
-  --ink:#0d0d0d;
-  --muted:#7a7a7a;
-  --accent:#cb935d;
-}
+body { font-family: "PP Neue Montreal","Helvetica Neue",Helvetica,Arial,sans-serif; }
 
-/* Base */
-body {
-  font-family: "PP Neue Montreal","Helvetica Neue",Helvetica,Arial,sans-serif;
-  background: var(--bg);
-  color: var(--ink);
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
+h1 { font-size: 4rem; font-weight: 100; line-height: 1; }
+h2 { font-size: 3rem; font-weight: 500; line-height: 1.125; letter-spacing: -0.03rem; }
+p  { font-size: 1.1rem; font-weight: 500; line-height: 1.5; }
 
-/* Large display headers - BOLD look */
-h1 { font-weight: 700; letter-spacing:-0.02em; }
-.intro h1, .outro h1 { font-size: clamp(2rem, 6vw, 4rem); font-weight: 800; }
-
-/* Sections */
 section {
   position: relative;
   width: 100%;
   min-height: 100vh;
+  background-color: #e0dfdf;
+  color: #0d0d0d;
   overflow: hidden;
 }
 
-.intro, .outro {
-  display:flex; align-items:center; justify-content:center;
-  background: #0d0d0d; color: #f1efe9; padding: 3rem 1rem;
+.intro,
+.outro {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #0d0d0d;
+  color: #e0dfdf;
+  padding: 2rem;
 }
 
-/* Product overview area */
-.product-overview { position: relative; min-height: 100vh; }
+.product-overview {
+  position: relative;
+}
 
-/* Model container (canvas) should be visually above the text so the text can pass behind it */
+/* 3D canvas holder */
 .model-container {
-  position: fixed; /* fixed gives a strong foreground presence */
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(900px, 80vw);
-  height: min(900px, 80vh);
-  z-index: 70;            /* high so it visually sits above headers */
-  pointer-events: none;   /* canvas won't block pointer actions */
-  filter: drop-shadow(0 30px 50px rgba(6,6,6,0.45)); /* cinematic shadow */
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.05));
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
 }
 
-/* Make the underlying canvas cover the container */
-.model-container canvas { width: 100% !important; height: 100% !important; display:block; border-radius:20px; }
-
-/* Headers - give them a bold look and place them behind by using a lower z-index */
 .header-1 {
   position: relative;
-  z-index: 10;                /* lower than model */
-  width: 220vw;
+  width: 200vw;
   height: 100vh;
-  display:flex; align-items:center; padding-left:8vw;
-  will-change: transform;
+  transform: translateX(0%);
 }
 
 .header-2 {
   position: fixed;
   top: 0; left: 0;
-  z-index: 20;                /* slightly higher than headers but lower than canvas */
   width: 150vw;
   height: 100vh;
-  display:flex; align-items:center; padding-left:8vw;
-  background: transparent;
-  pointer-events: none;
-  will-change: transform;
+  background-color: #e0dfdf;
+  transform: translateX(100%);
+  z-index: 2;
 }
 
-/* Big type styling - heavy weight for emphasis */
-.header-1 h1, .header-2 h1 {
-  font-size: clamp(3rem, 15vw, 12rem);
-  line-height: 0.9;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  text-transform: none;
-  text-shadow: 0 6px 18px rgba(0,0,0,0.08);
+.header-1,
+.header-2 {
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
 }
 
-/* Circular mask that expands during scroll */
+.header-1 h1,
+.header-2 h1 {
+  width: 100%;
+  font-size: 15vw;
+  line-height: 1.25;
+  letter-spacing: -0.02rem;
+}
+
+/* Mask reveal */
 .circular-mask {
   position: absolute;
   inset: 0;
-  z-index: 30; /* sits between headers and model to create reveal effect */
-  background: #0d0d0d;
+  background-color: #0d0d0d;
   clip-path: circle(0% at 50% 50%);
-  transition: clip-path 0.2s linear;
 }
 
-/* Tooltips area sits in page but visually behind the canvas initially.
-   We'll reveal content later with GSAP (opacity + translateY). */
+/* Tooltips area */
 .tooltips {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 15; /* behind the model canvas */
-  width: 70%;
-  display:flex; gap: 6rem; align-items:center;
-  pointer-events: auto;
+  width: 75%; height: 75%;
+  display: flex;
+  gap: 15rem;
+  z-index: 3;
 }
 
-/* Each tooltip */
 .tooltip {
-  flex:1; display:flex; flex-direction:column; gap:0.75rem;
-  color: #fff;
-  align-items:flex-start;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: #e0dfdf;
 }
 
-/* reverse stacking for second */
-.tooltip:nth-child(2) { align-items:flex-end; text-align:right; }
+.tooltip:nth-child(2) { justify-content: flex-end; align-items: flex-end; }
 
-.tooltip .icon { font-size: 2.4rem; display:inline-block; transform: translateY(125%); opacity:0; }
 .tooltip .divider {
-  width: 100%; height: 1px; background: var(--muted); transform: scaleX(0); transform-origin:right center;
-}
-.tooltip .title { transform: translateY(125%); opacity:0; font-weight:700; color:#fff; }
-.tooltip .description { transform: translateY(125%); opacity:0; color: #dcdcdc; max-width: 26ch; }
-
-/* small screens */
-@media (max-width:1000px) {
-  .model-container { position: relative; width: 100%; height: 60vh; margin: 1rem auto; transform:none; top:auto; left:auto; z-index:60;}
-  .header-1 { padding-left: 6vw; justify-content:center; text-align:center; }
-  .header-2 { display:none; }
-  .tooltips { width: 92%; flex-direction:column; gap:2rem; top: auto; bottom: 8vh; transform: translate(-50%, 0%); }
-  .tooltip .description { max-width: 100%; color: #222; }
-  .intro, .outro { padding: 2.5rem 1rem; }
-  .header-1 h1 { font-size: clamp(1.75rem, 8vw, 3rem); }
+  position: relative;
+  width: 100%;
+  height: 1px;
+  background-color: #5f5f5f;
+  margin: 0.5rem 0;
+  transform: scaleX(0);
+  transform-origin: right center;
 }
 
-/* subtle motion smoothing helpers: force will-change on animating elements */
-.header-1, .header-2, .circular-mask, .tooltip .divider, .tooltip .icon, .tooltip .title, .tooltip .description {
-  will-change: transform, opacity, clip-path;
-  transition: transform 0.2s linear;
+.tooltip .icon { font-size: 2.5rem; overflow: hidden; }
+.tooltip .description { color: #5f5f5f; }
+
+.tooltip:nth-child(2) .icon,
+.tooltip:nth-child(2) .title,
+.tooltip .description {
+  width: 70%;
 }
 
-/* Accent small touches */
-.outro h1 { font-weight: 800; font-size: clamp(1.75rem, 6vw, 3rem); color: var(--ink); }
+/* SplitText-like char spans */
+.header-1 h1 .char { display: inline-block; overflow: hidden; }
+.header-1 h1 .char > span {
+  display: inline-block;
+  transform: translateY(100%);
+  will-change: transform;
+}
+
+/* Elements that slide in vertically */
+.tooltip .icon ion-icon,
+.tooltip .title,
+.tooltip .description {
+  display: block;
+  transform: translateY(125%);
+  will-change: transform;
+}
+
+@media (max-width: 1000px) {
+  h1 { text-align: center; font-size: 2.5rem; }
+  h2, .tooltip .icon { font-size: 1.75rem; }
+
+  .tooltips {
+    width: 100%;
+    align-items: center;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .tooltip {
+    width: 85%;
+    color: #0d0d0d;
+  }
+
+  .tooltip .description { color: #222; }
+
+  .tooltip:nth-child(2) {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .tooltip .divider { width: 75%; transform-origin: right center; }
+
+  .tooltip:nth-child(2) .icon,
+  .tooltip:nth-child(2) .title { width: 100%; }
+}
