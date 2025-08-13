@@ -29,11 +29,12 @@ export default function App() {
     gsap.ticker.add((time) => lenis.raf(time * 1000));
     gsap.ticker.lagSmoothing(0);
 
-    // Build character spans (replacement for SplitText chars)
+    // Create char spans for header (SplitText-like)
     const header1 = header1Ref.current?.querySelector("h1");
     if (header1) {
-      const text = header1.textContent;
-      header1.innerHTML = ""; // clear
+      const text = header1.textContent.trim();
+      header1.innerHTML = "";
+      // split by characters but preserve spaces
       [...text].forEach((ch) => {
         const span = document.createElement("span");
         span.className = "char";
@@ -44,7 +45,7 @@ export default function App() {
       });
     }
 
-    // Three.js init
+    // THREE.js setup
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
@@ -60,24 +61,27 @@ export default function App() {
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    // modern property:
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     rendererRef.current = renderer;
 
+    // Put the canvas inside the container (this canvas will visually be on top)
     containerRef.current.appendChild(renderer.domElement);
 
     // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    mainLight.position.set(1, 2, 3);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(2, 4, 6);
     mainLight.castShadow = true;
+    mainLight.shadow.bias = -0.0001;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
     scene.add(mainLight);
 
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    fillLight.position.set(-2, 0, -2);
+    fillLight.position.set(-2, -1, -2);
     scene.add(fillLight);
 
+    // Model setup helper
     function setupModel() {
       const model = modelRef.current;
       const modelSize = modelSizeRef.current;
@@ -87,42 +91,63 @@ export default function App() {
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
 
+      // Position model and keep a slight front tilt (rotateX)
       model.position.set(
         isMobile ? -center.x : -center.x - modelSize.x * 0.4,
         -center.y * 0.005,
         -center.z
       );
-      model.rotation.z = isMobile ? 0 : THREE.MathUtils.degToRad(-25);
 
-      const cameraDistance = isMobile ? 2 : 1.5;
+      // Tilt forward slightly so it feels sculpted (in radians)
+      model.rotation.x = isMobile ? -0.12 : -0.25; // tilt forward
+      model.rotation.z = isMobile ? 0 : THREE.MathUtils.degToRad(-18);
+
+      const cameraDistance = isMobile ? 2.4 : 1.6;
       camera.position.set(
         0,
-        0,
+        Math.max(modelSize.y * 0.1, 0.1),
         Math.max(modelSize.x, modelSize.y, modelSize.z) * cameraDistance
       );
       camera.lookAt(0, 0, 0);
     }
 
-    // Load model from public/shaker.glb
+    // Load GLTF
     const loader = new GLTFLoader();
-    loader.load("/shaker.glb", (gltf) => {
-      const model = gltf.scene;
-      modelRef.current = model;
-      model.traverse((node) => {
-        if (node.isMesh && node.material) {
-          node.material.metalness = 0.05;
-          node.material.roughness = 0.9;
-        }
-      });
+    loader.load(
+      "/shaker.glb",
+      (gltf) => {
+        const model = gltf.scene;
+        modelRef.current = model;
 
-      const box = new THREE.Box3().setFromObject(model);
-      modelSizeRef.current = box.getSize(new THREE.Vector3());
+        model.traverse((node) => {
+          if (node.isMesh && node.material) {
+            node.material.metalness = 0.08;
+            node.material.roughness = 0.85;
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
 
-      scene.add(model);
-      setupModel();
-    });
+        const box = new THREE.Box3().setFromObject(model);
+        modelSizeRef.current = box.getSize(new THREE.Vector3());
 
-    // Animate loop
+        scene.add(model);
+        setupModel();
+
+        // small initial "swoosh" entrance for the model
+        gsap.fromTo(
+          model.rotation,
+          { y: model.rotation.y - 0.6 },
+          { y: model.rotation.y, duration: 1.2, ease: "power3.out" }
+        );
+      },
+      undefined,
+      (err) => {
+        console.error("GLTF load error:", err);
+      }
+    );
+
+    // Render loop
     let rafId;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
@@ -130,7 +155,7 @@ export default function App() {
     };
     animate();
 
-    // Resize
+    // Resize handling
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -139,102 +164,89 @@ export default function App() {
     };
     window.addEventListener("resize", onResize);
 
-    // GSAP ScrollTrigger scene
-    const productSection = sectionRef.current;
-    const animOptions = { duration: 1, ease: "power3.out", stagger: 0.025 };
+    // Anim options
+    const animOptions = { duration: 0.9, ease: "power3.out", stagger: 0.02 };
 
-    // Intro text characters slide-up on enter
+    // Header chars initial transform (hidden downward)
     const chars = header1Ref.current?.querySelectorAll(".char > span");
     if (chars?.length) {
-      chars.forEach((el) => (el.style.transform = "translateY(100%)"));
+      chars.forEach((el) => (el.style.transform = "translateY(110%)"));
       ScrollTrigger.create({
-        trigger: productSection,
+        trigger: sectionRef.current,
         start: "75% bottom",
-        onEnter: () => {
-          gsap.to(chars, { y: "0%", ...animOptions });
-        },
-        onLeaveBack: () => {
-          gsap.to(chars, { y: "100%", ...animOptions });
-        },
+        onEnter: () => gsap.to(chars, { y: "0%", ...animOptions }),
+        onLeaveBack: () => gsap.to(chars, { y: "100%", ...animOptions }),
       });
     }
 
-    // Pin + master progress timeline
+    // ScrollTrigger master timeline (pin)
     const st = ScrollTrigger.create({
-      trigger: productSection,
+      trigger: sectionRef.current,
       start: "top top",
       end: `+=${window.innerHeight * 10}`,
       pin: true,
       pinSpacing: true,
       scrub: 1,
       onUpdate: ({ progress }) => {
-        // header-1 slide left (0.05 -> 0.35)
+        // 1) header-1 slides left and goes behind model visually (we keep header z low in CSS)
         const headerProgress = Math.max(0, Math.min(1, (progress - 0.05) / 0.3));
         gsap.to(header1Ref.current, {
           xPercent:
             progress < 0.05 ? 0 : progress > 0.35 ? -100 : -100 * headerProgress,
+          ease: "none",
           overwrite: true,
         });
 
-        // circular mask reveal (0.2 -> 0.3)
+        // 2) circular mask reveal (reveal the model area)
         const maskSize =
           progress < 0.2 ? 0 : progress > 0.3 ? 100 : 100 * ((progress - 0.2) / 0.1);
         gsap.to(".circular-mask", {
           clipPath: `circle(${maskSize}% at 50% 50%)`,
+          ease: "none",
           overwrite: true,
         });
 
-        // header-2 sweeping (0.15 -> 0.5)
+        // 3) header-2 sweeping in/out
         const h2Prog = (progress - 0.15) / 0.35;
         const h2Percent =
           progress < 0.15 ? 100 : progress > 0.5 ? -200 : 100 - 300 * h2Prog;
         gsap.to(header2Ref.current, { xPercent: h2Percent, overwrite: true });
 
-        // tooltip divider expand (0.45 -> 0.65)
+        // 4) animate tooltip dividers expanding later
         const scaleX =
-          progress < 0.45 ? 0 : progress > 0.65 ? 100 : 100 * ((progress - 0.45) / 0.2);
+          progress < 0.45 ? 0 : progress > 0.65 ? 1 : ((progress - 0.45) / 0.2);
         gsap.to(".tooltip .divider", {
-          scaleX: scaleX / 100,
+          scaleX,
           transformOrigin: "right center",
           ...animOptions,
           overwrite: true,
         });
 
-        // tooltip items reveal
-        const tooltipTriggers = [
-          {
-            trigger: 0.5,
-            elements: [
-              ".tooltip:nth-child(1) .icon ion-icon",
-              ".tooltip:nth-child(1) .title",
-              ".tooltip:nth-child(1) .description",
-            ],
-          },
-          {
-            trigger: 0.6,
-            elements: [
-              ".tooltip:nth-child(2) .icon ion-icon",
-              ".tooltip:nth-child(2) .title",
-              ".tooltip:nth-child(2) .description",
-            ],
-          },
+        // 5) reveal tooltip content near the end (progress > 0.8)
+        const reveal = progress > 0.8;
+        const icons = [
+          ".tooltip:nth-child(1) .icon ion-icon",
+          ".tooltip:nth-child(1) .title",
+          ".tooltip:nth-child(1) .description",
+          ".tooltip:nth-child(2) .icon ion-icon",
+          ".tooltip:nth-child(2) .title",
+          ".tooltip:nth-child(2) .description",
         ];
-
-        tooltipTriggers.forEach(({ trigger, elements }) => {
-          gsap.to(elements, {
-            y: progress > trigger ? "0%" : "125%",
-            ...animOptions,
-            overwrite: true,
-          });
+        gsap.to(icons, {
+          y: reveal ? "0%" : "125%",
+          opacity: reveal ? 1 : 0,
+          ...animOptions,
+          overwrite: true,
         });
 
-        // model rotation (after 0.05)
+        // 6) model rotation while keeping tilt
         const model = modelRef.current;
         if (model && progress > 0.05) {
-          const rotationProgress = (progress - 0.05) / 0.05;
-          const targetRotation = Math.PI * 3 * 4 * rotationProgress;
+          // slower, continuous rotation mapped to a comfortable sweep
+          const rotationProgress = Math.max(0, Math.min(1, (progress - 0.05) / 0.8)); // normalized broader range
+          const targetRotation = Math.PI * 1.75 * rotationProgress; // less extreme than before
           const rotationDiff = targetRotation - currentRotationRef.current;
-          if (Math.abs(rotationDiff) > 0.001) {
+          if (Math.abs(rotationDiff) > 0.0005) {
             model.rotateOnAxis(new THREE.Vector3(0, 1, 0), rotationDiff);
             currentRotationRef.current = targetRotation;
           }
@@ -248,7 +260,7 @@ export default function App() {
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(rafId);
       renderer.dispose();
-      scene.clear();
+      scene.clear(true);
       gsap.ticker.remove((time) => lenis.raf(time * 1000));
       lenis.destroy();
     };
@@ -274,7 +286,7 @@ export default function App() {
         <div className="tooltips" ref={tooltipsRef}>
           <div className="tooltip">
             <div className="icon">
-              <ion-icon name="flash"></ion-icon>
+              <ion-icon name="flash" />
             </div>
             <div className="divider" />
             <div className="title">
@@ -290,7 +302,7 @@ export default function App() {
 
           <div className="tooltip">
             <div className="icon">
-              <ion-icon name="bluetooth"></ion-icon>
+              <ion-icon name="bluetooth" />
             </div>
             <div className="divider" />
             <div className="title">
@@ -305,6 +317,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* canvas container: sits visually on top so text can go behind */}
         <div ref={containerRef} className="model-container" />
       </section>
 
