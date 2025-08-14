@@ -15,7 +15,13 @@ export default function HeroSection() {
   return (
     <section className="relative w-full h-screen overflow-hidden bg-black flex flex-col">
       {/* Overlay Text */}
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8 pointer-events-none">
+      <div
+        className="
+          absolute inset-0 z-10 flex flex-col items-center justify-center 
+          text-center px-4 sm:px-6 lg:px-8 pointer-events-none
+          translate-y-8 sm:translate-y-12 md:translate-y-16
+        "
+      >
         <h1 className="text-white text-3xl sm:text-5xl md:text-6xl lg:text-8xl font-light tracking-wide drop-shadow-lg leading-snug sm:leading-tight">
           AI ROBOT <span className="font-extrabold">For FUTURE</span>
         </h1>
